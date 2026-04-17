@@ -244,7 +244,7 @@ func buildUserPrompt(query string, batch int, tlds []string, store *core.Store, 
 		fmt.Fprintf(&sb, "Only include domains ending in: %s\n", strings.Join(tlds, ", "))
 	}
 
-	sample := store.Sample(150)
+	sample := store.Sample(40)
 	if len(sample) > 0 {
 		sb.WriteString("\nAVOID these domains (already in our list). Also avoid anything that looks similar:\n")
 		for _, d := range sample {
