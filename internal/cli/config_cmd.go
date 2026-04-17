@@ -26,6 +26,14 @@ func runConfig(args []string) {
 		runConfigInit()
 	case "unset":
 		runConfigUnset(args[1:])
+	case "add-key":
+		runConfigAddKey(args[1:])
+	case "remove-key":
+		runConfigRemoveKey(args[1:])
+	case "list-keys":
+		runConfigListKeys(args[1:])
+	case "clear-keys":
+		runConfigClearKeys(args[1:])
 	default:
 		printConfigUsage()
 		os.Exit(1)
@@ -39,35 +47,42 @@ USAGE:
     domgrab config <subcommand> [args]
 
 SUBCOMMANDS:
-    init                       Interactive setup
-    show                       Print current config (API keys are masked)
-    path                       Print config file location
-    set <key> <value>          Set a single config field
-    get <key>                  Print a single config field (unmasked)
-    unset <key>                Remove a config field
+    init                            Interactive setup
+    show                            Print current config (API keys are masked)
+    path                            Print config file location
+    set <key> <value>               Set a single config field
+    get <key>                       Print a single config field (unmasked)
+    unset <key>                     Remove a config field
+
+MULTI-KEY ROTATION (for rate limit avoidance):
+    add-key <provider> <API_KEY>    Add an API key to provider's rotation pool
+    remove-key <provider> <index>   Remove key at 1-based index
+    list-keys <provider>            Show all keys for provider (masked)
+    clear-keys <provider>           Remove all keys for provider
+
+    Supported providers: anthropic, openai, gemini, groq, openrouter
 
 KEYS:
-    anthropic_api_key
-    openai_api_key
-    gemini_api_key
-    groq_api_key
-    openrouter_api_key
-    default_provider
-    default_model
-    default_output
-    anthropic_model
-    openai_model
-    gemini_model
-    groq_model
-    openrouter_model
+    anthropic_api_key, openai_api_key, gemini_api_key,
+    groq_api_key, openrouter_api_key
+    default_provider, default_model, default_output
+    anthropic_model, openai_model, gemini_model,
+    groq_model, openrouter_model
 
 EXAMPLES:
     domgrab config init
     domgrab config set gemini_api_key YOUR_KEY
     domgrab config set default_provider gemini
-    domgrab config set gemini_model gemini-3-flash-preview
-    domgrab config show
-    domgrab config unset openai_api_key`)
+
+    # Add multiple Gemini keys for automatic rotation:
+    domgrab config add-key gemini AIza...key1
+    domgrab config add-key gemini AIza...key2
+    domgrab config add-key gemini AIza...key3
+    domgrab config list-keys gemini
+
+    # Mix providers for even more rotation:
+    domgrab config add-key groq gsk_...key1
+    domgrab config add-key openrouter sk-or-v1-...key1`)
 }
 
 func runConfigShow() {
@@ -82,11 +97,11 @@ func runConfigShow() {
 		return
 	}
 	fmt.Println()
-	fmt.Printf("  anthropic_api_key  : %s\n", displayKey(cfg.AnthropicAPIKey))
-	fmt.Printf("  openai_api_key     : %s\n", displayKey(cfg.OpenAIAPIKey))
-	fmt.Printf("  gemini_api_key     : %s\n", displayKey(cfg.GeminiAPIKey))
-	fmt.Printf("  groq_api_key       : %s\n", displayKey(cfg.GroqAPIKey))
-	fmt.Printf("  openrouter_api_key : %s\n", displayKey(cfg.OpenRouterAPIKey))
+	fmt.Printf("  anthropic_api_key  : %s%s\n", displayKey(cfg.AnthropicAPIKey), extraKeys(len(cfg.AnthropicAPIKeys)))
+	fmt.Printf("  openai_api_key     : %s%s\n", displayKey(cfg.OpenAIAPIKey), extraKeys(len(cfg.OpenAIAPIKeys)))
+	fmt.Printf("  gemini_api_key     : %s%s\n", displayKey(cfg.GeminiAPIKey), extraKeys(len(cfg.GeminiAPIKeys)))
+	fmt.Printf("  groq_api_key       : %s%s\n", displayKey(cfg.GroqAPIKey), extraKeys(len(cfg.GroqAPIKeys)))
+	fmt.Printf("  openrouter_api_key : %s%s\n", displayKey(cfg.OpenRouterAPIKey), extraKeys(len(cfg.OpenRouterAPIKeys)))
 	fmt.Printf("  default_provider   : %s\n", displayStr(cfg.DefaultProvider))
 	fmt.Printf("  default_model      : %s\n", displayStr(cfg.DefaultModel))
 	fmt.Printf("  default_output     : %s\n", displayStr(cfg.DefaultOutput))
@@ -95,6 +110,224 @@ func runConfigShow() {
 	fmt.Printf("  gemini_model       : %s\n", displayStr(cfg.GeminiModel))
 	fmt.Printf("  groq_model         : %s\n", displayStr(cfg.GroqModel))
 	fmt.Printf("  openrouter_model   : %s\n", displayStr(cfg.OpenRouterModel))
+
+	total := len(cfg.AnthropicAPIKeys) + len(cfg.OpenAIAPIKeys) + len(cfg.GeminiAPIKeys) +
+		len(cfg.GroqAPIKeys) + len(cfg.OpenRouterAPIKeys)
+	if total > 0 {
+		fmt.Printf("\nTotal extra keys (rotation pool): %d — use `config list-keys <provider>` to see details\n", total)
+	}
+}
+
+// extraKeys returns a suffix like " (+3 more)" if the array has extra keys.
+func extraKeys(n int) string {
+	if n == 0 {
+		return ""
+	}
+	return fmt.Sprintf("  (+%d more in rotation pool)", n)
+}
+
+// getKeysPtr returns a pointer to the slice of extra keys for a provider.
+// Returns nil if provider is unknown.
+func getKeysPtr(cfg *core.Config, provider string) *[]string {
+	switch strings.ToLower(strings.TrimSpace(provider)) {
+	case "anthropic":
+		return &cfg.AnthropicAPIKeys
+	case "openai":
+		return &cfg.OpenAIAPIKeys
+	case "gemini":
+		return &cfg.GeminiAPIKeys
+	case "groq":
+		return &cfg.GroqAPIKeys
+	case "openrouter":
+		return &cfg.OpenRouterAPIKeys
+	}
+	return nil
+}
+
+func runConfigAddKey(args []string) {
+	if len(args) < 2 {
+		fmt.Fprintln(os.Stderr, "usage: domgrab config add-key <provider> <API_KEY>")
+		fmt.Fprintln(os.Stderr, "       provider: anthropic|openai|gemini|groq|openrouter")
+		os.Exit(1)
+	}
+	provider := args[0]
+	newKey := strings.Join(args[1:], " ")
+	newKey = strings.TrimSpace(newKey)
+	if newKey == "" {
+		fmt.Fprintln(os.Stderr, "error: empty API key")
+		os.Exit(1)
+	}
+
+	cfg, _, err := core.LoadConfig()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+
+	ptr := getKeysPtr(cfg, provider)
+	if ptr == nil {
+		fmt.Fprintf(os.Stderr, "error: unknown provider %q\n", provider)
+		os.Exit(1)
+	}
+
+	// Check for duplicate in both the array and the legacy single-key field
+	allExisting := append([]string{}, *ptr...)
+	if single := getLegacySingleKey(cfg, provider); single != "" {
+		allExisting = append(allExisting, single)
+	}
+	for _, existing := range allExisting {
+		if existing == newKey {
+			fmt.Fprintln(os.Stderr, "error: this key is already in the pool")
+			os.Exit(1)
+		}
+	}
+
+	*ptr = append(*ptr, newKey)
+
+	path, err := core.SaveConfig(cfg)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error writing config: %v\n", err)
+		os.Exit(1)
+	}
+
+	total := len(*ptr)
+	if single := getLegacySingleKey(cfg, provider); single != "" {
+		total++
+	}
+	fmt.Printf("added key %s to %s pool (now %d keys total) in %s\n",
+		core.MaskKey(newKey), provider, total, path)
+}
+
+func runConfigRemoveKey(args []string) {
+	if len(args) < 2 {
+		fmt.Fprintln(os.Stderr, "usage: domgrab config remove-key <provider> <index>")
+		os.Exit(1)
+	}
+	provider := args[0]
+	var idx int
+	if _, err := fmt.Sscanf(args[1], "%d", &idx); err != nil || idx < 1 {
+		fmt.Fprintln(os.Stderr, "error: index must be a positive integer (1-based)")
+		os.Exit(1)
+	}
+
+	cfg, _, err := core.LoadConfig()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+
+	ptr := getKeysPtr(cfg, provider)
+	if ptr == nil {
+		fmt.Fprintf(os.Stderr, "error: unknown provider %q\n", provider)
+		os.Exit(1)
+	}
+	if idx > len(*ptr) {
+		fmt.Fprintf(os.Stderr, "error: index %d out of range (pool has %d keys)\n", idx, len(*ptr))
+		fmt.Fprintln(os.Stderr, "note: this command only removes from the rotation pool, not the primary *_api_key")
+		fmt.Fprintln(os.Stderr, "      to remove the primary key, use `config unset <provider>_api_key`")
+		os.Exit(1)
+	}
+
+	removed := (*ptr)[idx-1]
+	*ptr = append((*ptr)[:idx-1], (*ptr)[idx:]...)
+
+	path, err := core.SaveConfig(cfg)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error writing config: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("removed key #%d (%s) from %s pool (%d keys remaining) in %s\n",
+		idx, core.MaskKey(removed), provider, len(*ptr), path)
+}
+
+func runConfigListKeys(args []string) {
+	if len(args) < 1 {
+		fmt.Fprintln(os.Stderr, "usage: domgrab config list-keys <provider>")
+		os.Exit(1)
+	}
+	provider := args[0]
+
+	cfg, _, err := core.LoadConfig()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+
+	ptr := getKeysPtr(cfg, provider)
+	if ptr == nil {
+		fmt.Fprintf(os.Stderr, "error: unknown provider %q\n", provider)
+		os.Exit(1)
+	}
+
+	single := getLegacySingleKey(cfg, provider)
+	totalCount := len(*ptr)
+	if single != "" {
+		totalCount++
+	}
+
+	if totalCount == 0 {
+		fmt.Printf("no keys configured for %s\n", provider)
+		return
+	}
+
+	fmt.Printf("%s keys (%d total):\n", provider, totalCount)
+	i := 1
+	if single != "" {
+		fmt.Printf("  [#%d] %s  (primary, %s_api_key)\n", i, core.MaskKey(single), provider)
+		i++
+	}
+	for _, k := range *ptr {
+		fmt.Printf("  [#%d] %s  (rotation pool)\n", i, core.MaskKey(k))
+		i++
+	}
+}
+
+func runConfigClearKeys(args []string) {
+	if len(args) < 1 {
+		fmt.Fprintln(os.Stderr, "usage: domgrab config clear-keys <provider>")
+		os.Exit(1)
+	}
+	provider := args[0]
+
+	cfg, _, err := core.LoadConfig()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+
+	ptr := getKeysPtr(cfg, provider)
+	if ptr == nil {
+		fmt.Fprintf(os.Stderr, "error: unknown provider %q\n", provider)
+		os.Exit(1)
+	}
+	removed := len(*ptr)
+	*ptr = nil
+
+	path, err := core.SaveConfig(cfg)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error writing config: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("cleared %d keys from %s rotation pool in %s\n", removed, provider, path)
+	fmt.Printf("note: primary %s_api_key is NOT removed — use `config unset %s_api_key` for that\n",
+		provider, provider)
+}
+
+// getLegacySingleKey returns the value of the single-key config field for a provider.
+func getLegacySingleKey(cfg *core.Config, provider string) string {
+	switch strings.ToLower(strings.TrimSpace(provider)) {
+	case "anthropic":
+		return cfg.AnthropicAPIKey
+	case "openai":
+		return cfg.OpenAIAPIKey
+	case "gemini":
+		return cfg.GeminiAPIKey
+	case "groq":
+		return cfg.GroqAPIKey
+	case "openrouter":
+		return cfg.OpenRouterAPIKey
+	}
+	return ""
 }
 
 func displayKey(k string) string {

@@ -51,21 +51,26 @@ func runGrab(args []string) {
 	chosenModel := core.ResolveModel(chosenProvider, *model, cfg)
 	tlds := parseCSV(*tldFlag)
 
-	var key, keySource string
+	var keys []string
+	var keySource string
 	if *apiKey != "" {
-		key = *apiKey
+		keys = []string{*apiKey}
 		keySource = "flag"
 	} else {
-		key, keySource = core.ResolveAPIKey(chosenProvider, cfg)
+		keys, keySource = core.ResolveAPIKeys(chosenProvider, cfg)
 	}
-	if key == "" {
+	if len(keys) == 0 {
 		fmt.Fprintf(os.Stderr, "error: no API key for provider %q\n", chosenProvider)
-		fmt.Fprintf(os.Stderr, "       run `domgrab config init` or set %s env var\n", core.ProviderEnvName(chosenProvider))
+		fmt.Fprintf(os.Stderr, "       run `domgrab config init` or `domgrab config add-key %s <KEY>`\n", chosenProvider)
+		fmt.Fprintf(os.Stderr, "       or set %s env var\n", core.ProviderEnvName(chosenProvider))
 		fmt.Fprintf(os.Stderr, "       config file: %s\n", cfgPath)
 		os.Exit(1)
 	}
 
-	prov, err := buildProvider(chosenProvider, key, chosenModel)
+	keyring := core.NewKeyring(chosenProvider, keys)
+	activeKey, activeIdx := keyring.Current()
+
+	prov, err := buildProvider(chosenProvider, activeKey, chosenModel)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
@@ -82,7 +87,13 @@ func runGrab(args []string) {
 	fmt.Printf(" author   : %s\n", Author)
 	fmt.Printf(" github   : %s\n", GitHub)
 	fmt.Printf("═══════════════════════════════════════════\n")
-	fmt.Printf(" provider : %s (key: %s, from %s)\n", prov.Name(), core.MaskKey(key), keySource)
+	if keyring.Size() > 1 {
+		fmt.Printf(" provider : %s (keys: %d loaded from %s, rotating on rate limit)\n",
+			prov.Name(), keyring.Size(), keySource)
+		fmt.Printf(" active   : key #%d (%s)\n", activeIdx, core.MaskKey(activeKey))
+	} else {
+		fmt.Printf(" provider : %s (key: %s, from %s)\n", prov.Name(), core.MaskKey(activeKey), keySource)
+	}
 	if chosenModel != "" {
 		fmt.Printf(" model    : %s\n", chosenModel)
 	}
@@ -121,12 +132,44 @@ func runGrab(args []string) {
 		}
 
 		userPrompt := buildUserPrompt(*query, *batch, tlds, store, iter)
-		fmt.Printf("[batch %d] requesting %d domains... ", iter, *batch)
+		_, curIdx := keyring.Current()
+		if keyring.Size() > 1 {
+			fmt.Printf("[batch %d] requesting %d domains (key #%d)... ", iter, *batch, curIdx)
+		} else {
+			fmt.Printf("[batch %d] requesting %d domains... ", iter, *batch)
+		}
 
 		callCtx, callCancel := context.WithTimeout(ctx, 120*time.Second)
 		resp, err := prov.Generate(callCtx, sysPrompt, userPrompt)
 		callCancel()
 		if err != nil {
+			// Key rotation logic: is this a rate limit error?
+			if core.IsRateLimitError(err) && keyring.Size() > 1 {
+				nextIdx, allExhausted, waitFor := keyring.MarkFailed(60 * time.Second)
+				if allExhausted {
+					fmt.Printf("ERROR: %v\n", err)
+					fmt.Printf("[!] all %d keys exhausted, waiting %s for cooldown...\n",
+						keyring.Size(), waitFor.Round(time.Second))
+					select {
+					case <-ctx.Done():
+						goto done
+					case <-time.After(waitFor + time.Second):
+					}
+					// Retry Current() after wait
+					if k, i := keyring.Current(); k != "" {
+						prov.SetKey(k)
+						fmt.Printf("[!] resumed on key #%d\n", i)
+					}
+					continue
+				}
+				// Successfully rotated
+				nextKey, _ := keyring.Current()
+				prov.SetKey(nextKey)
+				fmt.Printf("RATE LIMITED: %v\n", truncateErr(err, 80))
+				fmt.Printf("[!] rotating to key #%d (%s available)\n", nextIdx, keyring.Status())
+				continue
+			}
+			// Non-rotation error path (transient or fatal)
 			fmt.Printf("ERROR: %v\n", err)
 			wait := waitDuration(err)
 			select {
@@ -143,7 +186,7 @@ func runGrab(args []string) {
 
 		candidates := core.ExtractDomains(resp)
 		if len(tlds) > 0 {
-			filtered := candidates[:0]
+			filtered := make([]string, 0, len(candidates))
 			for _, d := range candidates {
 				if core.MatchesAnyTLD(d, tlds) {
 					filtered = append(filtered, d)
@@ -217,46 +260,67 @@ func waitDuration(err error) time.Duration {
 	switch {
 	case strings.Contains(msg, "resource_exhausted"), strings.Contains(msg, "quota"), strings.Contains(msg, "rate limit"):
 		return 5 * time.Second
+	case strings.Contains(msg, "unavailable"),
+		strings.Contains(msg, "high demand"),
+		strings.Contains(msg, "overloaded"):
+		return 15 * time.Second
 	default:
 		return 2 * time.Second
 	}
 }
 
-func buildSystemPrompt() string {
-	return `You are a domain research assistant. Your job is to produce lists of real, existing internet domains that match the user's query.
+// truncateErr shortens a long error message for inline printing.
+func truncateErr(err error, n int) string {
+	if err == nil {
+		return ""
+	}
+	s := err.Error()
+	if len(s) <= n {
+		return s
+	}
+	return s[:n] + "..."
+}
 
-CRITICAL RULES:
-1. Output ONLY domain names, one per line. No numbering, no descriptions, no markdown, no commentary.
-2. Output only registered, real-world domains — no hypothetical or invented ones.
-3. Use canonical form: lowercase, no "https://", no "www.", no trailing slash, no paths.
-4. If the user provides a list of domains to AVOID, do NOT include any of them in your output.
-5. Do not include IP addresses, email addresses, or URLs with paths.
-6. If you are uncertain whether a domain exists, omit it.
-7. Prefer diversity — do not return near-duplicates (e.g. both "example.gov.br" and "www.example.gov.br").`
+func buildSystemPrompt() string {
+	return `Output real existing domains only, one per line.
+Format: lowercase, no https://, no www., no paths, no ports.
+No numbering, no markdown, no commentary, no duplicates.
+Skip any domain you are uncertain exists.`
 }
 
 func buildUserPrompt(query string, batch int, tlds []string, store *core.Store, iter int) string {
 	var sb strings.Builder
-	fmt.Fprintf(&sb, "Query: %s\n\n", query)
-	fmt.Fprintf(&sb, "Produce up to %d domains matching this query.\n", batch)
+	fmt.Fprintf(&sb, "Query: %s\n", query)
+	fmt.Fprintf(&sb, "Produce up to %d domains.\n", batch)
 
 	if len(tlds) > 0 {
-		fmt.Fprintf(&sb, "Only include domains ending in: %s\n", strings.Join(tlds, ", "))
+		fmt.Fprintf(&sb, "Only TLDs: %s\n", strings.Join(tlds, ", "))
 	}
 
-	sample := store.Sample(40)
-	if len(sample) > 0 {
-		sb.WriteString("\nAVOID these domains (already in our list). Also avoid anything that looks similar:\n")
-		for _, d := range sample {
-			sb.WriteString(d)
-			sb.WriteString("\n")
+	// Token-efficient dedup hints:
+	// - When store is empty/small, skip AVOID list entirely (no duplicates possible)
+	// - When store is medium, send a small sample (40 domains)
+	// - When store is large, send top TLD histogram + small sample
+	size := store.Size()
+	if size > 0 && size < 50 {
+		// Small store: no sample needed, AI likely won't repeat naturally
+		fmt.Fprintf(&sb, "\nWe already have %d domains. Generate new ones.\n", size)
+	} else if size >= 50 {
+		// Medium+ store: send small random sample to prime the AI
+		sample := store.Sample(40)
+		if len(sample) > 0 {
+			sb.WriteString("\nDo NOT repeat these (or similar):\n")
+			for _, d := range sample {
+				sb.WriteString(d)
+				sb.WriteString("\n")
+			}
 		}
 	}
 
 	if iter > 1 {
-		fmt.Fprintf(&sb, "\nThis is continuation batch #%d. Focus on domains you haven't yet suggested in earlier batches of this session. Explore less obvious corners of the query space.\n", iter)
+		fmt.Fprintf(&sb, "\nBatch #%d — explore different angles from prior batches.\n", iter)
 	}
 
-	sb.WriteString("\nOutput: domain list only, one per line.")
+	sb.WriteString("\nOutput: domain list only.")
 	return sb.String()
 }

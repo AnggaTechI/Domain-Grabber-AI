@@ -10,11 +10,19 @@ import (
 
 // Config is the JSON structure stored at ./domgrab.json in the CWD.
 type Config struct {
+	// Legacy single-key fields (backward compatible - auto-merged into *APIKeys)
 	AnthropicAPIKey  string `json:"anthropic_api_key"`
 	OpenAIAPIKey     string `json:"openai_api_key"`
 	GeminiAPIKey     string `json:"gemini_api_key"`
 	GroqAPIKey       string `json:"groq_api_key"`
 	OpenRouterAPIKey string `json:"openrouter_api_key"`
+
+	// Multi-key arrays for rotation on rate limit
+	AnthropicAPIKeys  []string `json:"anthropic_api_keys,omitempty"`
+	OpenAIAPIKeys     []string `json:"openai_api_keys,omitempty"`
+	GeminiAPIKeys     []string `json:"gemini_api_keys,omitempty"`
+	GroqAPIKeys       []string `json:"groq_api_keys,omitempty"`
+	OpenRouterAPIKeys []string `json:"openrouter_api_keys,omitempty"`
 
 	DefaultProvider string `json:"default_provider"`
 	DefaultModel    string `json:"default_model"` // legacy fallback
@@ -86,50 +94,104 @@ func SaveConfig(cfg *Config) (string, error) {
 
 // ResolveAPIKey determines which API key to use given precedence:
 //  1. Environment variable
-//  2. Config file
+//  2. Config file (single key)
+//  3. First key in the multi-key array
 // Returns the key and a short string indicating the source (for log messages).
 func ResolveAPIKey(provider string, cfg *Config) (key string, source string) {
+	keys, source := ResolveAPIKeys(provider, cfg)
+	if len(keys) == 0 {
+		return "", ""
+	}
+	return keys[0], source
+}
+
+// ResolveAPIKeys returns ALL available keys for a provider, merged from:
+//  1. Environment variable (if set, as single key)
+//  2. Single-key config field (legacy)
+//  3. Multi-key array field
+// Deduplicates and preserves order. Used for key rotation.
+func ResolveAPIKeys(provider string, cfg *Config) (keys []string, source string) {
+	seen := make(map[string]struct{})
+	add := func(k string) {
+		k = strings.TrimSpace(k)
+		if k == "" {
+			return
+		}
+		if _, dup := seen[k]; dup {
+			return
+		}
+		seen[k] = struct{}{}
+		keys = append(keys, k)
+	}
+
+	var envKey, envName string
+	var single string
+	var arr []string
+
 	switch normalizeProvider(provider) {
 	case "anthropic":
-		if v := os.Getenv("ANTHROPIC_API_KEY"); v != "" {
-			return v, "env:ANTHROPIC_API_KEY"
-		}
-		if cfg != nil && cfg.AnthropicAPIKey != "" {
-			return cfg.AnthropicAPIKey, "config"
+		envName = "ANTHROPIC_API_KEY"
+		envKey = os.Getenv(envName)
+		if cfg != nil {
+			single = cfg.AnthropicAPIKey
+			arr = cfg.AnthropicAPIKeys
 		}
 	case "openai":
-		if v := os.Getenv("OPENAI_API_KEY"); v != "" {
-			return v, "env:OPENAI_API_KEY"
-		}
-		if cfg != nil && cfg.OpenAIAPIKey != "" {
-			return cfg.OpenAIAPIKey, "config"
+		envName = "OPENAI_API_KEY"
+		envKey = os.Getenv(envName)
+		if cfg != nil {
+			single = cfg.OpenAIAPIKey
+			arr = cfg.OpenAIAPIKeys
 		}
 	case "gemini":
-		if v := os.Getenv("GEMINI_API_KEY"); v != "" {
-			return v, "env:GEMINI_API_KEY"
+		envName = "GEMINI_API_KEY"
+		envKey = os.Getenv(envName)
+		if envKey == "" {
+			envKey = os.Getenv("GOOGLE_API_KEY")
+			if envKey != "" {
+				envName = "GOOGLE_API_KEY"
+			}
 		}
-		if v := os.Getenv("GOOGLE_API_KEY"); v != "" {
-			return v, "env:GOOGLE_API_KEY"
-		}
-		if cfg != nil && cfg.GeminiAPIKey != "" {
-			return cfg.GeminiAPIKey, "config"
+		if cfg != nil {
+			single = cfg.GeminiAPIKey
+			arr = cfg.GeminiAPIKeys
 		}
 	case "groq":
-		if v := os.Getenv("GROQ_API_KEY"); v != "" {
-			return v, "env:GROQ_API_KEY"
-		}
-		if cfg != nil && cfg.GroqAPIKey != "" {
-			return cfg.GroqAPIKey, "config"
+		envName = "GROQ_API_KEY"
+		envKey = os.Getenv(envName)
+		if cfg != nil {
+			single = cfg.GroqAPIKey
+			arr = cfg.GroqAPIKeys
 		}
 	case "openrouter":
-		if v := os.Getenv("OPENROUTER_API_KEY"); v != "" {
-			return v, "env:OPENROUTER_API_KEY"
+		envName = "OPENROUTER_API_KEY"
+		envKey = os.Getenv(envName)
+		if cfg != nil {
+			single = cfg.OpenRouterAPIKey
+			arr = cfg.OpenRouterAPIKeys
 		}
-		if cfg != nil && cfg.OpenRouterAPIKey != "" {
-			return cfg.OpenRouterAPIKey, "config"
+	default:
+		return nil, ""
+	}
+
+	// Determine source label based on where the first key came from
+	if envKey != "" {
+		add(envKey)
+		source = "env:" + envName
+	}
+	if single != "" {
+		add(single)
+		if source == "" {
+			source = "config"
 		}
 	}
-	return "", ""
+	for _, k := range arr {
+		add(k)
+	}
+	if source == "" && len(keys) > 0 {
+		source = "config"
+	}
+	return keys, source
 }
 
 // ResolveModel chooses a model with precedence:
@@ -189,7 +251,7 @@ func ResolveProvider(flagProvider string, cfg *Config) string {
 		}
 	}
 	for _, p := range []string{"anthropic", "openai", "gemini", "groq", "openrouter"} {
-		if key, _ := ResolveAPIKey(p, cfg); key != "" {
+		if keys, _ := ResolveAPIKeys(p, cfg); len(keys) > 0 {
 			return p
 		}
 	}

@@ -15,6 +15,7 @@ import (
 type Provider interface {
 	Name() string
 	Generate(ctx context.Context, systemPrompt, userPrompt string) (string, error)
+	SetKey(apiKey string)
 }
 
 // ----- Shared OpenAI-compatible types -----
@@ -119,6 +120,8 @@ func NewAnthropicProvider(apiKey, model string) *AnthropicProvider {
 
 func (p *AnthropicProvider) Name() string { return "anthropic" }
 
+func (p *AnthropicProvider) SetKey(apiKey string) { p.apiKey = apiKey }
+
 type anthropicReq struct {
 	Model     string             `json:"model"`
 	MaxTokens int                `json:"max_tokens"`
@@ -214,6 +217,8 @@ func NewOpenAIProvider(apiKey, model string) *OpenAIProvider {
 
 func (p *OpenAIProvider) Name() string { return "openai" }
 
+func (p *OpenAIProvider) SetKey(apiKey string) { p.apiKey = apiKey }
+
 func (p *OpenAIProvider) Generate(ctx context.Context, systemPrompt, userPrompt string) (string, error) {
 	return postOpenAICompat(
 		ctx,
@@ -252,6 +257,8 @@ func NewGeminiProvider(apiKey, model string) *GeminiProvider {
 }
 
 func (p *GeminiProvider) Name() string { return "gemini" }
+
+func (p *GeminiProvider) SetKey(apiKey string) { p.apiKey = apiKey }
 
 type geminiGenerateReq struct {
 	SystemInstruction *geminiContent `json:"systemInstruction,omitempty"`
@@ -367,6 +374,8 @@ func NewGroqProvider(apiKey, model string) *GroqProvider {
 
 func (p *GroqProvider) Name() string { return "groq" }
 
+func (p *GroqProvider) SetKey(apiKey string) { p.apiKey = apiKey }
+
 func (p *GroqProvider) Generate(ctx context.Context, systemPrompt, userPrompt string) (string, error) {
 	return postOpenAICompat(
 		ctx,
@@ -405,6 +414,8 @@ func NewOpenRouterProvider(apiKey, model string) *OpenRouterProvider {
 }
 
 func (p *OpenRouterProvider) Name() string { return "openrouter" }
+
+func (p *OpenRouterProvider) SetKey(apiKey string) { p.apiKey = apiKey }
 
 func (p *OpenRouterProvider) Generate(ctx context.Context, systemPrompt, userPrompt string) (string, error) {
 	return postOpenAICompat(
