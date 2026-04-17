@@ -27,9 +27,9 @@
 
 ## Overview
 
-**Domain Grabber AI** is a command-line tool that uses AI models to generate domain lists from simple natural language prompts.
+**Domain Grabber AI** is an AI-powered CLI tool to discover, filter, and collect real domains from natural language queries.
 
-Instead of manually searching and collecting domain names one by one, you can write a prompt like:
+Instead of manually searching and collecting domain names one by one, you can write prompts like:
 
 - universities in Indonesia
 - government domains from Brazil
@@ -47,7 +47,7 @@ The tool will then:
 - remove duplicates
 - save only new domains into a master list
 
-This makes it useful for domain research, lead building, OSINT-style collection workflows, niche dataset creation, and bulk domain organization.
+This makes it useful for domain research, dataset building, niche target collection, and automation workflows.
 
 ---
 
@@ -103,7 +103,7 @@ flowchart TD
 ### Input
 
 ```bash
- domgrab.exe grab --query "universities in Indonesia" --target 100 --batch 20 --tld ac.id
+domgrab.exe grab --query "universities in Indonesia" --target 100 --batch 20 --tld ac.id
 ```
 
 ### Internal Process
@@ -134,7 +134,7 @@ ipb.ac.id
 ## Project Structure
 
 ```bash
-domgrab/
+Domain-Grabber-AI/
 ├── main.go
 ├── go.mod
 ├── README.md
@@ -159,8 +159,8 @@ domgrab/
 ### Clone the repository
 
 ```bash
-git clone https://github.com/AnggaTechI/domgrab.git
-cd domgrab
+git clone https://github.com/AnggaTechI/Domain-Grabber-AI.git
+cd Domain-Grabber-AI
 ```
 
 ### Build on Windows
@@ -340,7 +340,7 @@ domgrab.exe stats
 
 ---
 
-## What Makes It Useful?
+## Why Use Domain Grabber AI?
 
 Domain Grabber AI is useful when you want to:
 
@@ -361,6 +361,12 @@ Domain Grabber AI is useful when you want to:
 - TLD filters are optional
 - Different AI providers may have different quotas and speed limits
 - Generated results depend on the quality of the prompt and the model
+
+---
+
+## Repository
+
+GitHub Repository: https://github.com/AnggaTechI/Domain-Grabber-AI
 
 ---
 
