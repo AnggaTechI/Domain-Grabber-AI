@@ -23,40 +23,36 @@
   <img src="https://img.shields.io/badge/OpenRouter-Supported-0f172a?style=flat-square" />
 </p>
 
+<p align="center">
+  <a href="https://github.com/AnggaTechI/Domain-Grabber-AI/releases/download/v1.0.0/domgrab.exe">
+    <img src="https://img.shields.io/badge/Download-Windows-2563eb?style=for-the-badge&logo=windows&logoColor=white" />
+  </a>
+  <a href="https://github.com/AnggaTechI/Domain-Grabber-AI/releases/download/v1.0.0/domgrab">
+    <img src="https://img.shields.io/badge/Download-Linux-111827?style=for-the-badge&logo=linux&logoColor=white" />
+  </a>
+</p>
+
+<p align="center">
+  <b>AI-powered CLI tool to discover, filter, and collect real domains from natural language queries.</b>
+</p>
+
+---
+
 > [!IMPORTANT]
-## Precompiled Binaries
-
-Download precompiled binaries directly:
-
-- [Download for Linux](https://github.com/AnggaTechI/Domain-Grabber-AI/releases/download/v1.0.0/domgrab)
-- [Download for Windows](https://github.com/AnggaTechI/Domain-Grabber-AI/releases/download/v1.0.0/domgrab.exe)
-
-## Download
-
-[![Download Linux](https://img.shields.io/badge/Download-Linux-2563eb?style=for-the-badge&logo=linux&logoColor=white)](https://github.com/AnggaTechI/Domain-Grabber-AI/releases/download/v1.0.0/domgrab)
-[![Download Windows](https://img.shields.io/badge/Download-Windows-2563eb?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/AnggaTechI/Domain-Grabber-AI/releases/download/v1.0.0/domgrab.exe)
-
-### Usage
-
-**Linux**
-```bash
-chmod +x domgrab
-./domgrab grab --query "universities in Indonesia" --target 100 --batch 20 --tld ac.id
-```
-
-**Windows**
-```bash
-domgrab.exe grab --query "universities in Indonesia" --target 100 --batch 20 --tld ac.id
-```
-
+> **Precompiled binaries are ready.**
+>
+> - **Windows**: [`domgrab.exe`](https://github.com/AnggaTechI/Domain-Grabber-AI/releases/download/v1.0.0/domgrab.exe)
+> - **Linux**: [`domgrab`](https://github.com/AnggaTechI/Domain-Grabber-AI/releases/download/v1.0.0/domgrab)
+>
+> Download them from the **Releases** page and run directly without building from source.
 
 ---
 
 ## Overview
 
-**Domain Grabber AI** is an AI-powered CLI tool to discover, filter, and collect real domains from natural language queries.
+**Domain Grabber AI** helps you turn a simple natural language prompt into a clean list of real domains.
 
-Instead of manually searching and collecting domain names one by one, you can write prompts like:
+Instead of manually searching and collecting domains one by one, you can ask for things like:
 
 - universities in Indonesia
 - government domains from Brazil
@@ -64,24 +60,22 @@ Instead of manually searching and collecting domain names one by one, you can wr
 - startup companies in Southeast Asia
 - real estate companies in Singapore
 
-The tool will then:
+The tool will:
 
-- send your query to the selected AI provider
-- receive raw text output from the model
-- extract valid domain names from the response
-- normalize each domain into a clean format
-- filter by TLD if needed
-- remove duplicates
-- save only new domains into a master list
+- query the selected AI provider
+- extract domain candidates from raw model output
+- normalize and validate domains
+- apply TLD filters if needed
+- remove duplicates automatically
+- save only fresh results into your master list
 
-This makes it useful for domain research, dataset building, niche target collection, and automation workflows.
+It is useful for domain research, niche dataset building, lead collection, and automation workflows.
 
 ---
 
-## Key Features
+## Highlights
 
 - Natural language domain discovery
-- Clean CLI workflow
 - Multi-provider AI support
 - Per-provider model configuration
 - Automatic provider selection from available API keys
@@ -89,10 +83,9 @@ This makes it useful for domain research, dataset building, niche target collect
 - TLD filtering support
 - Duplicate prevention
 - Persistent master list storage
-- Domain listing command
-- Domain statistics command
-- Portable JSON config file
-- Works on Windows, Linux, and macOS
+- Built-in `list` and `stats` commands
+- Portable `domgrab.json` config file
+- Ready-to-use Windows and Linux binaries
 
 ---
 
@@ -104,7 +97,7 @@ This makes it useful for domain research, dataset building, niche target collect
 - Groq
 - OpenRouter
 
-Each provider can use its own custom model from `domgrab.json`.
+Each provider can use its own model through `domgrab.json`.
 
 ---
 
@@ -112,48 +105,59 @@ Each provider can use its own custom model from `domgrab.json`.
 
 ```mermaid
 flowchart TD
-    A[User enters natural language query] --> B[CLI builds provider prompt]
-    B --> C[Selected AI model generates domain suggestions]
-    C --> D[Tool receives raw text output]
-    D --> E[Extract domain candidates]
-    E --> F[Normalize and validate domains]
-    F --> G[Apply TLD filter if enabled]
-    G --> H[Remove duplicates]
-    H --> I[Append new domains to master.txt]
-    I --> J[User reviews data with list or stats]
+    A[User enters a natural language query] --> B[CLI builds provider prompt]
+    B --> C[AI model generates raw domain suggestions]
+    C --> D[Tool extracts domain candidates]
+    D --> E[Normalize and validate domains]
+    E --> F[Apply TLD filter if enabled]
+    F --> G[Remove duplicates]
+    G --> H[Append fresh domains to master.txt]
+    H --> I[Review with list or stats]
 ```
 
 ---
 
-## Real Workflow Example
+## Quick Start
 
-### Input
+### Windows
 
+```bash
+domgrab.exe config set gemini_api_key YOUR_GEMINI_KEY
+domgrab.exe config set default_provider gemini
+domgrab.exe config set gemini_model gemini-3-flash-preview
+domgrab.exe grab --query "universities in Indonesia" --target 100 --batch 20 --tld ac.id
+```
+
+### Linux
+
+```bash
+chmod +x domgrab
+./domgrab config set gemini_api_key YOUR_GEMINI_KEY
+./domgrab config set default_provider gemini
+./domgrab config set gemini_model gemini-3-flash-preview
+./domgrab grab --query "universities in Indonesia" --target 100 --batch 20 --tld ac.id
+```
+
+---
+
+## Download Precompiled Binaries
+
+### Direct Downloads
+
+- [Windows Binary](https://github.com/AnggaTechI/Domain-Grabber-AI/releases/download/v1.0.0/domgrab.exe)
+- [Linux Binary](https://github.com/AnggaTechI/Domain-Grabber-AI/releases/download/v1.0.0/domgrab)
+
+### Usage
+
+**Windows**
 ```bash
 domgrab.exe grab --query "universities in Indonesia" --target 100 --batch 20 --tld ac.id
 ```
 
-### Internal Process
-
-1. The CLI reads your configuration.
-2. It selects the provider and API key.
-3. It builds a prompt for the AI model.
-4. The model returns raw lines of text.
-5. The tool extracts only valid domains.
-6. It filters results using `ac.id`.
-7. It removes duplicates from the master list.
-8. It saves only fresh domains.
-
-### Output
-
-A clean `master.txt` file containing real domains such as:
-
-```txt
-ugm.ac.id
-ui.ac.id
-itb.ac.id
-unair.ac.id
-ipb.ac.id
+**Linux**
+```bash
+chmod +x domgrab
+./domgrab grab --query "universities in Indonesia" --target 100 --batch 20 --tld ac.id
 ```
 
 ---
@@ -190,38 +194,16 @@ git clone https://github.com/AnggaTechI/Domain-Grabber-AI.git
 cd Domain-Grabber-AI
 ```
 
-### Build on Windows
+### Build from source
 
+**Windows**
 ```bash
 go build -o domgrab.exe .
 ```
 
-### Build on Linux / macOS
-
+**Linux / macOS**
 ```bash
 go build -o domgrab .
-```
-
----
-
-## Precompiled Binaries
-
-Prebuilt binaries are available in the [Releases](https://github.com/AnggaTechI/Domain-Grabber-AI/releases) section.
-
-### Available Builds
-- **Windows**: `domgrab.exe`
-- **Linux**: `domgrab`
-
-### Usage
-
-**Windows**
-```bash
-domgrab.exe grab --query "universities in Indonesia" --target 100 --batch 20 --tld ac.id
-```
-
-**Linux**
-```bash
-./domgrab grab --query "universities in Indonesia" --target 100 --batch 20 --tld ac.id
 ```
 
 ---
@@ -232,45 +214,44 @@ domgrab.exe grab --query "universities in Indonesia" --target 100 --batch 20 --t
 domgrab <command> [flags]
 ```
 
-### Available Commands
+### Commands
 
-- `grab`      Grab domains via AI from a natural language query
-- `list`      Show domains in the master list
-- `stats`     Show domain statistics
-- `config`    Manage API keys, models, and defaults
-- `version`   Show version information
-- `help`      Show help message
+- `grab` — Grab domains via AI from a natural language query
+- `list` — Show domains in the master list
+- `stats` — Show domain statistics
+- `config` — Manage API keys, models, and defaults
+- `version` — Show version information
+- `help` — Show help message
 
 ---
 
-## Quick Start
+## Example Workflow
 
-### 1. Set your API key
-
-Example using Gemini:
-
-```bash
-domgrab.exe config set gemini_api_key YOUR_GEMINI_KEY
-domgrab.exe config set default_provider gemini
-domgrab.exe config set gemini_model gemini-3-flash-preview
-```
-
-### 2. Start grabbing domains
+### Input
 
 ```bash
 domgrab.exe grab --query "universities in Indonesia" --target 100 --batch 20 --tld ac.id
 ```
 
-### 3. List saved domains
+### Process
 
-```bash
-domgrab.exe list --tld ac.id --limit 50
-```
+1. The CLI loads your configuration.
+2. It selects the provider and model.
+3. It sends the prompt to the AI provider.
+4. The model returns raw text.
+5. The tool extracts valid domains.
+6. The TLD filter is applied.
+7. Duplicate domains are removed.
+8. New results are saved to `master.txt`.
 
-### 4. Show statistics
+### Sample Output
 
-```bash
-domgrab.exe stats
+```txt
+ugm.ac.id
+ui.ac.id
+itb.ac.id
+unair.ac.id
+ipb.ac.id
 ```
 
 ---
@@ -307,29 +288,26 @@ Configuration is stored in:
 
 ## Provider Resolution Logic
 
-Provider selection order:
-
+**Provider selection order**
 1. `--provider` flag
 2. `default_provider` in config
 3. First available provider with a valid API key
 4. Fallback to `anthropic`
 
-API key resolution order:
-
+**API key resolution order**
 1. `--api-key` flag
 2. Environment variable
 3. `domgrab.json`
 
-Model resolution order:
-
+**Model resolution order**
 1. `--model` flag
 2. Provider-specific model from config
 3. `default_model`
-4. Provider internal fallback model
+4. Provider fallback model
 
 ---
 
-## Command Examples
+## More Examples
 
 ### Grab Indonesian university domains
 
@@ -361,7 +339,7 @@ domgrab.exe grab --query "tech companies in Singapore" --target 150 --output sin
 domgrab.exe list --filter uin
 ```
 
-### Show top TLD stats
+### Show TLD stats
 
 ```bash
 domgrab.exe stats
@@ -369,7 +347,7 @@ domgrab.exe stats
 
 ---
 
-## Example Output
+## Example CLI Output
 
 ```txt
 ═══════════════════════════════════════════
@@ -391,14 +369,12 @@ domgrab.exe stats
 
 ## Why Use Domain Grabber AI?
 
-Domain Grabber AI is useful when you want to:
-
-- build domain datasets quickly
-- discover niche websites by topic or country
-- collect institution domains in bulk
-- organize targets into one clean list
-- automate repetitive domain research workflows
-- combine AI generation with your own filtering strategy
+- Build domain datasets faster
+- Discover niche websites by topic or country
+- Collect institutional domains in bulk
+- Keep everything in one clean master list
+- Automate repetitive domain research tasks
+- Combine AI generation with your own filtering strategy
 
 ---
 
@@ -408,8 +384,8 @@ Domain Grabber AI is useful when you want to:
 - Domains are normalized before saving
 - Duplicate domains are skipped automatically
 - TLD filters are optional
-- Different AI providers may have different quotas and speed limits
-- Generated results depend on the quality of the prompt and the model
+- Different AI providers may have different rate limits
+- Results depend on the prompt quality and selected model
 
 ---
 
