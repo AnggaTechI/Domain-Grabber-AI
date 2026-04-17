@@ -24,13 +24,31 @@
 </p>
 
 > [!IMPORTANT]
-> Precompiled binaries are available in the **Releases** section.
->
-> Supported builds:
-> - **Windows** → `domgrab.exe`
-> - **Linux** → `domgrab`
->
-> You can download and run them directly without building from source.
+## Precompiled Binaries
+
+Download precompiled binaries directly:
+
+- [Download for Linux](https://github.com/AnggaTechI/Domain-Grabber-AI/releases/download/v1.0.0/domgrab)
+- [Download for Windows](https://github.com/AnggaTechI/Domain-Grabber-AI/releases/download/v1.0.0/domgrab.exe)
+
+## Download
+
+[![Download Linux](https://img.shields.io/badge/Download-Linux-2563eb?style=for-the-badge&logo=linux&logoColor=white)](https://github.com/AnggaTechI/Domain-Grabber-AI/releases/download/v1.0.0/domgrab)
+[![Download Windows](https://img.shields.io/badge/Download-Windows-2563eb?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/AnggaTechI/Domain-Grabber-AI/releases/download/v1.0.0/domgrab.exe)
+
+### Usage
+
+**Linux**
+```bash
+chmod +x domgrab
+./domgrab grab --query "universities in Indonesia" --target 100 --batch 20 --tld ac.id
+```
+
+**Windows**
+```bash
+domgrab.exe grab --query "universities in Indonesia" --target 100 --batch 20 --tld ac.id
+```
+
 
 ---
 
