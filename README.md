@@ -125,7 +125,7 @@ flowchart TD
 domgrab.exe config set gemini_api_key YOUR_GEMINI_KEY
 domgrab.exe config set default_provider gemini
 domgrab.exe config set gemini_model gemini-3-flash-preview
-domgrab.exe grab --query "universities in Indonesia" --target 100 --batch 20 --tld ac.id
+domgrab.exe grab --query "universities in Indonesia" --target 100 --batch 100 --tld ac.id
 ```
 
 ### Linux
@@ -135,7 +135,7 @@ chmod +x domgrab
 ./domgrab config set gemini_api_key YOUR_GEMINI_KEY
 ./domgrab config set default_provider gemini
 ./domgrab config set gemini_model gemini-3-flash-preview
-./domgrab grab --query "universities in Indonesia" --target 100 --batch 20 --tld ac.id
+./domgrab grab --query "universities in Indonesia" --target 100 --batch 100 --tld ac.id
 ```
 
 ---
@@ -151,13 +151,13 @@ chmod +x domgrab
 
 **Windows**
 ```bash
-domgrab.exe grab --query "universities in Indonesia" --target 100 --batch 20 --tld ac.id
+domgrab.exe grab --query "universities in Indonesia" --target 100 --batch 100 --tld ac.id
 ```
 
 **Linux**
 ```bash
 chmod +x domgrab
-./domgrab grab --query "universities in Indonesia" --target 100 --batch 20 --tld ac.id
+./domgrab grab --query "universities in Indonesia" --target 100 --batch 100 --tld ac.id
 ```
 
 ---
@@ -230,7 +230,7 @@ domgrab <command> [flags]
 ### Input
 
 ```bash
-domgrab.exe grab --query "universities in Indonesia" --target 100 --batch 20 --tld ac.id
+domgrab.exe grab --query "universities in Indonesia" --target 100 --batch 100 --tld ac.id
 ```
 
 ### Process
@@ -312,7 +312,7 @@ Configuration is stored in:
 ### Grab Indonesian university domains
 
 ```bash
-domgrab.exe grab --query "universities in Indonesia" --target 100 --batch 20 --tld ac.id
+domgrab.exe grab --query "universities in Indonesia" --target 100 --batch 100 --tld ac.id
 ```
 
 ### Grab Brazilian government domains
