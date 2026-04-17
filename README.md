@@ -23,6 +23,15 @@
   <img src="https://img.shields.io/badge/OpenRouter-Supported-0f172a?style=flat-square" />
 </p>
 
+> [!IMPORTANT]
+> Precompiled binaries are available in the **Releases** section.
+>
+> Supported builds:
+> - **Windows** → `domgrab.exe`
+> - **Linux** → `domgrab`
+>
+> You can download and run them directly without building from source.
+
 ---
 
 ## Overview
@@ -173,6 +182,28 @@ go build -o domgrab.exe .
 
 ```bash
 go build -o domgrab .
+```
+
+---
+
+## Precompiled Binaries
+
+Prebuilt binaries are available in the [Releases](https://github.com/AnggaTechI/Domain-Grabber-AI/releases) section.
+
+### Available Builds
+- **Windows**: `domgrab.exe`
+- **Linux**: `domgrab`
+
+### Usage
+
+**Windows**
+```bash
+domgrab.exe grab --query "universities in Indonesia" --target 100 --batch 20 --tld ac.id
+```
+
+**Linux**
+```bash
+./domgrab grab --query "universities in Indonesia" --target 100 --batch 20 --tld ac.id
 ```
 
 ---
